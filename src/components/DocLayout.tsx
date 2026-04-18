@@ -38,6 +38,7 @@ function DocArticleView({ relPath }: ArticleProps) {
       if (cancelled) return
       setLoadError(null)
       setRaw(null)
+      ws.revokeActiveImageObjectUrls()
       setPdfUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return null
@@ -63,6 +64,7 @@ function DocArticleView({ relPath }: ArticleProps) {
     })()
     return () => {
       cancelled = true
+      ws.revokeActiveImageObjectUrls()
       setPdfUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return null

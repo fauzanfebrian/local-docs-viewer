@@ -1,5 +1,5 @@
 import type { Components } from 'react-markdown'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import type { PluggableList } from 'unified'
 import { Link } from 'react-router-dom'
@@ -8,6 +8,7 @@ import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 
 import { encodeDocPath, resolveMdHrefToRelPath, stripFragment } from '../lib/mdPathResolve'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { CodeBlock } from './CodeBlock'
 import { MermaidBlock } from './MermaidBlock'
 
@@ -17,12 +18,120 @@ type Props = {
   docRelPath: string
 }
 
+function remarkStripHtmlComments() {
+  return (tree: unknown) => {
+    type MdAstNode = {
+      type?: unknown
+      value?: unknown
+      children?: unknown
+      // allow extra mdast fields without using `any`
+      [k: string]: unknown
+    }
+
+    const isNode = (v: unknown): v is MdAstNode => typeof v === 'object' && v !== null
+
+    const isCommentHtml = (node: MdAstNode) =>
+      node.type === 'html' && typeof node.value === 'string' && node.value.trim().startsWith('<!--')
+
+    const walk = (node: unknown) => {
+      if (!isNode(node)) return
+      if (!node || typeof node !== 'object') return
+      const children = node.children
+      if (Array.isArray(children)) {
+        const filtered = children.filter((c) => !(isNode(c) && isCommentHtml(c)))
+        node.children = filtered
+        for (const child of filtered) walk(child)
+      }
+    }
+    walk(tree)
+  }
+}
+
 function stripTrailingNewline(s: string): string {
   return s.replace(/\n$/, '')
 }
 
 function isLocalMarkdownHref(href: string): boolean {
   return /\.(md|markdown)(#|$)/i.test(href)
+}
+
+function isProbablyLocalImageSrc(src: string): boolean {
+  const s = src.trim()
+  if (s === '') return false
+  if (/^(https?:)?\/\//i.test(s)) return false
+  if (/^(data|blob):/i.test(s)) return false
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(s)) return false
+  if (s.startsWith('#')) return false
+  return true
+}
+
+function resolveImageSrcToWorkspaceRelPath(docRelPath: string, src: string): string {
+  const trimmed = src.trim()
+  if (trimmed.startsWith('/')) return stripFragment(trimmed.slice(1))
+  return stripFragment(resolveMdHrefToRelPath(docRelPath, trimmed))
+}
+
+function MdImage({
+  src,
+  alt,
+  className,
+  docRelPath,
+  ws,
+  ...props
+}: React.ComponentPropsWithoutRef<'img'> & {
+  docRelPath: string
+  ws: ReturnType<typeof useWorkspace>
+}) {
+  const rawSrc = (src ?? '').trim()
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
+  const [isBroken, setIsBroken] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResolvedSrc(null)
+    setIsBroken(false)
+
+    if (!rawSrc || !isProbablyLocalImageSrc(rawSrc)) return
+
+    const rel = resolveImageSrcToWorkspaceRelPath(docRelPath, rawSrc)
+    const handle = ws.getImageHandle(rel)
+    if (!handle) return
+
+    void (async () => {
+      try {
+        const file = await handle.getFile()
+        if (cancelled) return
+        const url = URL.createObjectURL(file)
+        ws.trackImageObjectUrl(url)
+        setResolvedSrc(url)
+      } catch {
+        if (!cancelled) setIsBroken(true)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rawSrc, docRelPath, ws])
+
+  const finalSrc = resolvedSrc ?? (rawSrc || undefined)
+  const cls = [className, isBroken ? 'is-broken' : null].filter(Boolean).join(' ') || undefined
+
+  return (
+    <img
+      {...props}
+      src={finalSrc}
+      alt={alt ?? ''}
+      className={cls}
+      loading="lazy"
+      onError={(e) => {
+        props.onError?.(e)
+        setIsBroken(true)
+      }}
+    />
+  )
 }
 
 function MdLink({
@@ -75,7 +184,7 @@ function MdLink({
   )
 }
 
-function createComponents(docRelPath: string): Components {
+function createComponents(docRelPath: string, ws: ReturnType<typeof useWorkspace>): Components {
   return {
     table: ({ children, ...props }) => (
       <div className="table-scroll">
@@ -103,11 +212,13 @@ function createComponents(docRelPath: string): Components {
       )
     },
     a: (props) => <MdLink {...props} docRelPath={docRelPath} />,
+    img: (props) => <MdImage {...props} docRelPath={docRelPath} ws={ws} />,
   }
 }
 
 export function MarkdownDoc({ markdown, docRelPath }: Props) {
-  const components = useMemo(() => createComponents(docRelPath), [docRelPath])
+  const ws = useWorkspace()
+  const components = useMemo(() => createComponents(docRelPath, ws), [docRelPath, ws])
   const rehypePlugins = useMemo<PluggableList>(
     () => [
       rehypeSlug,
@@ -136,7 +247,7 @@ export function MarkdownDoc({ markdown, docRelPath }: Props) {
   return (
     <article className="markdown-body">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkStripHtmlComments]}
         rehypePlugins={rehypePlugins}
         components={components}
         urlTransform={urlTransform}

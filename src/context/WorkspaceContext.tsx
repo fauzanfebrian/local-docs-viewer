@@ -9,7 +9,7 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 
-import { collectDocFiles, readTextFile, type DocFileRef } from '../lib/fsCrawl'
+import { collectWorkspaceIndex, readTextFile, type DocFileRef } from '../lib/fsCrawl'
 import { encodeDocPath } from '../lib/mdPathResolve'
 import {
   loadWorkspaceState,
@@ -34,8 +34,14 @@ type WorkspaceContextValue = {
   activeRootName: string | null
   docFiles: DocFileRef[]
   getFileHandle: (relPath: string) => FileSystemFileHandle | undefined
+  /** Image handle lookup by workspace-relative path (POSIX). */
+  getImageHandle: (relPath: string) => FileSystemFileHandle | undefined
   loadMarkdown: (relPath: string) => Promise<string>
   loadText: (relPath: string) => Promise<string>
+  /** Track object URLs created for the *currently rendered* markdown document. */
+  trackImageObjectUrl: (url: string) => void
+  /** Revoke all tracked object URLs (call on doc switch/unmount). */
+  revokeActiveImageObjectUrls: () => void
   setActiveWorkspaceId: (id: string) => Promise<void>
   openFolderPicker: () => Promise<void>
   /** Re-grant read access without opening the directory picker (user gesture). */
@@ -66,6 +72,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [docFiles, setDocFiles] = useState<DocFileRef[]>([])
   const [needsPermissionRestore, setNeedsPermissionRestore] = useState(false)
   const contentCache = useRef<Map<string, string>>(new Map())
+  const imageHandleByRelPath = useRef<Map<string, FileSystemFileHandle>>(new Map())
+  const activeImageObjectUrls = useRef<Set<string>>(new Set())
 
   const persist = useCallback(async (next: StoredWorkspace[], activeId: string | null) => {
     setWorkspaces(next)
@@ -81,10 +89,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const scanWorkspace = useCallback(async (root: FileSystemDirectoryHandle) => {
     setPhase('loading')
     setDocFiles([])
+    imageHandleByRelPath.current = new Map()
     setErrorMessage(null)
     try {
-      const files = await collectDocFiles(root)
-      setDocFiles(files)
+      const idx = await collectWorkspaceIndex(root)
+      setDocFiles(idx.docs)
+      imageHandleByRelPath.current = new Map(idx.images.map((i) => [i.relPath, i.handle]))
       contentCache.current = new Map()
       setPhase('active')
     } catch (e) {
@@ -154,6 +164,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (relPath: string) => docFiles.find((f) => f.relPath === relPath)?.handle,
     [docFiles],
   )
+
+  const getImageHandle = useCallback((relPath: string) => {
+    return imageHandleByRelPath.current.get(relPath)
+  }, [])
+
+  const trackImageObjectUrl = useCallback((url: string) => {
+    activeImageObjectUrls.current.add(url)
+  }, [])
+
+  const revokeActiveImageObjectUrls = useCallback(() => {
+    activeImageObjectUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    activeImageObjectUrls.current.clear()
+  }, [])
 
   const loadMarkdown = useCallback(
     async (relPath: string) => {
@@ -317,8 +340,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     activeRootName: activeWorkspace?.name ?? null,
     docFiles,
     getFileHandle,
+    getImageHandle,
     loadMarkdown,
     loadText,
+    trackImageObjectUrl,
+    revokeActiveImageObjectUrls,
     setActiveWorkspaceId,
     openFolderPicker,
     restoreWorkspaceAccess,
