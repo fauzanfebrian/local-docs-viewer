@@ -2,12 +2,12 @@ import { buildFileTree } from '../lib/fileTree'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { FileTreeNav } from './FileTreeNav'
 
-export function WorkspaceSidebar() {
+export function WorkspaceSidebarContent() {
   const ws = useWorkspace()
   const tree = buildFileTree(ws.docFiles.map((f) => f.relPath))
 
   return (
-    <aside className="sidebar">
+    <>
       <div className="sidebar__brand">Personal docs</div>
 
       {ws.workspaces.length > 0 ? (
@@ -55,6 +55,16 @@ export function WorkspaceSidebar() {
           <FileTreeNav nodes={tree} />
         )}
       </nav>
+    </>
+  )
+}
+
+export function WorkspaceSidebar() {
+  return (
+    <aside className="sidebar">
+      <div className="sidebar__inner">
+        <WorkspaceSidebarContent />
+      </div>
     </aside>
   )
 }

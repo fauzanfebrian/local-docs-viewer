@@ -1,16 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 
 import { decodeDocPath } from '../lib/mdPathResolve'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { MarkdownDoc } from './MarkdownDoc'
-import { parseToc } from '../lib/parseToc'
-import { TableOfContents } from './TableOfContents'
-import { WorkspaceSidebar } from './WorkspaceSidebar'
+import { TableOfContents, type TocItem } from './TableOfContents'
+import { WorkspaceSidebarContent } from './WorkspaceSidebar'
 import DOMPurify from 'dompurify'
 
 type ArticleProps = {
   relPath: string
+}
+
+type LightboxState = {
+  open: boolean
+  src: string
+  alt: string
 }
 
 function extOf(path: string): string {
@@ -25,11 +30,59 @@ function sanitizePlainText(text: string): string {
   return DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
 }
 
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n))
+}
+
+function getLocalPoint(evt: { clientX: number; clientY: number }, rect: DOMRect) {
+  return {
+    x: evt.clientX - rect.left - rect.width / 2,
+    y: evt.clientY - rect.top - rect.height / 2,
+  }
+}
+
+function createTocFromArticle(articleEl: HTMLElement | null): TocItem[] {
+  if (!articleEl) return []
+  const headings = Array.from(articleEl.querySelectorAll('h1,h2,h3,h4,h5,h6')) as HTMLElement[]
+  const out: TocItem[] = []
+  for (const h of headings) {
+    const id = (h.getAttribute('id') ?? '').trim()
+    if (!id) continue
+    const text = (h.textContent ?? '').trim()
+    if (!text) continue
+    const depth = Number(h.tagName.slice(1)) as TocItem['depth']
+    if (!Number.isFinite(depth) || depth < 1 || depth > 6) continue
+    out.push({ id, text, depth })
+  }
+  return out
+}
+
 function DocArticleView({ relPath }: ArticleProps) {
   const ws = useWorkspace()
   const [raw, setRaw] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [leftOpen, setLeftOpen] = useState(false)
+  const [rightOpen, setRightOpen] = useState(false)
+  const [tocItems, setTocItems] = useState<TocItem[]>([])
+  const [activeTocId, setActiveTocId] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<LightboxState | null>(null)
+  const articleRef = useRef<HTMLElement | null>(null)
+  const lbViewportRef = useRef<HTMLDivElement | null>(null)
+  const lbPointers = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const [lbTransform, setLbTransform] = useState<{ scale: number; tx: number; ty: number }>({
+    scale: 1,
+    tx: 0,
+    ty: 0,
+  })
+  const lbDragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null)
+  const lbPinchRef = useRef<{
+    startDist: number
+    startScale: number
+    startTx: number
+    startTy: number
+    startMid: { x: number; y: number }
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -39,6 +92,8 @@ function DocArticleView({ relPath }: ArticleProps) {
       setLoadError(null)
       setRaw(null)
       ws.revokeActiveImageObjectUrls()
+      setTocItems([])
+      setActiveTocId(null)
       setPdfUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return null
@@ -73,73 +128,392 @@ function DocArticleView({ relPath }: ArticleProps) {
   }, [relPath, ws])
 
   const ext = extOf(relPath)
-  const tocItems = raw && (ext === 'md' || ext === 'markdown') ? parseToc(raw) : []
+  const isMd = ext === 'md' || ext === 'markdown'
+  const shouldShowToc = isMd
+
+  const closeSidebars = useCallback(() => {
+    setLeftOpen(false)
+    setRightOpen(false)
+  }, [])
+
+  const closeLightbox = useCallback(() => {
+    setLightbox(null)
+    lbPointers.current.clear()
+    lbDragRef.current = null
+    lbPinchRef.current = null
+    setLbTransform({ scale: 1, tx: 0, ty: 0 })
+  }, [])
+
+  const setArticleEl = useCallback((el: HTMLElement | null) => {
+    articleRef.current = el
+  }, [])
+
+  const onMarkdownImageClick = useCallback(({ src, alt }: { src: string; alt?: string }) => {
+    if (!src) return
+    setLbTransform({ scale: 1, tx: 0, ty: 0 })
+    setLightbox({ open: true, src, alt: alt ?? '' })
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isModB = (e.key === 'b' || e.key === 'B') && (e.metaKey || e.ctrlKey)
+      if (isModB) {
+        e.preventDefault()
+        setLeftOpen((v) => !v)
+        return
+      }
+      if (e.key === 'Escape') {
+        closeSidebars()
+        closeLightbox()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closeLightbox, closeSidebars])
+
+  useEffect(() => {
+    if (!shouldShowToc) return
+    const el = articleRef.current
+    if (!el) return
+    const next = createTocFromArticle(el)
+    setTocItems(next)
+    if (next.length === 0) setActiveTocId(null)
+  }, [raw, shouldShowToc])
+
+  useEffect(() => {
+    if (!shouldShowToc) return
+    const el = articleRef.current
+    if (!el) return
+    const headings = Array.from(el.querySelectorAll('h1,h2,h3,h4,h5,h6')) as HTMLElement[]
+    if (headings.length === 0) return
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((en) => en.isIntersecting && (en.target as HTMLElement).id)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]?.target) setActiveTocId((visible[0].target as HTMLElement).id)
+      },
+      { root: null, rootMargin: '-20% 0px -70% 0px', threshold: [0, 1] },
+    )
+
+    for (const h of headings) io.observe(h)
+    return () => io.disconnect()
+  }, [raw, shouldShowToc])
+
+  const isAnySidebarOpen = leftOpen || rightOpen
 
   if (loadError) {
     return (
-      <div className="app-shell">
-        <WorkspaceSidebar />
+      <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--left"
+          aria-controls="sidebar-left"
+          aria-expanded={leftOpen}
+          aria-label="Toggle file explorer"
+          onClick={() => setLeftOpen((v) => !v)}
+        >
+          ☰
+        </button>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--right"
+          aria-controls="sidebar-right"
+          aria-expanded={rightOpen}
+          aria-label="Toggle table of contents"
+          onClick={() => setRightOpen((v) => !v)}
+        >
+          ≡
+        </button>
+
+        <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
+
+        <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner">
+            <WorkspaceSidebarContent />
+          </div>
+        </aside>
         <main className="main">
           <p className="empty-state" role="alert">
             {loadError}
           </p>
         </main>
+        <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner" />
+        </aside>
       </div>
     )
   }
 
   if (ext === 'pdf' && pdfUrl === null) {
     return (
-      <div className="app-shell">
-        <WorkspaceSidebar />
+      <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--left"
+          aria-controls="sidebar-left"
+          aria-expanded={leftOpen}
+          aria-label="Toggle file explorer"
+          onClick={() => setLeftOpen((v) => !v)}
+        >
+          ☰
+        </button>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--right"
+          aria-controls="sidebar-right"
+          aria-expanded={rightOpen}
+          aria-label="Toggle table of contents"
+          onClick={() => setRightOpen((v) => !v)}
+        >
+          ≡
+        </button>
+
+        <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
+
+        <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner">
+            <WorkspaceSidebarContent />
+          </div>
+        </aside>
         <main className="main">
           <p className="loading-indicator" aria-busy="true">
             Loading document…
           </p>
         </main>
+        <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner" />
+        </aside>
       </div>
     )
   }
 
   if (ext !== 'pdf' && raw === null) {
     return (
-      <div className="app-shell">
-        <WorkspaceSidebar />
+      <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--left"
+          aria-controls="sidebar-left"
+          aria-expanded={leftOpen}
+          aria-label="Toggle file explorer"
+          onClick={() => setLeftOpen((v) => !v)}
+        >
+          ☰
+        </button>
+        <button
+          type="button"
+          className="chrome-btn chrome-btn--right"
+          aria-controls="sidebar-right"
+          aria-expanded={rightOpen}
+          aria-label="Toggle table of contents"
+          onClick={() => setRightOpen((v) => !v)}
+        >
+          ≡
+        </button>
+
+        <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
+
+        <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner">
+            <WorkspaceSidebarContent />
+          </div>
+        </aside>
         <main className="main">
           <p className="loading-indicator" aria-busy="true">
             Loading document…
           </p>
         </main>
+        <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
+          <div className="sidebar__inner" />
+        </aside>
       </div>
     )
   }
 
   return (
-    <div className="app-shell">
-      <WorkspaceSidebar />
-      <main className="main">
+    <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
+      <button
+        type="button"
+        className="chrome-btn chrome-btn--left"
+        aria-controls="sidebar-left"
+        aria-expanded={leftOpen}
+        aria-label="Toggle file explorer"
+        onClick={() => setLeftOpen((v) => !v)}
+      >
+        ☰
+      </button>
+      <button
+        type="button"
+        className="chrome-btn chrome-btn--right"
+        aria-controls="sidebar-right"
+        aria-expanded={rightOpen}
+        aria-label="Toggle table of contents"
+        onClick={() => setRightOpen((v) => !v)}
+      >
+        ≡
+      </button>
+
+      <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
+
+      <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
+        <div className="sidebar__inner">
+          <WorkspaceSidebarContent />
+        </div>
+      </aside>
+
+      <main className="main" id="reader-main">
         {ext === 'pdf' ? (
           <div className="pdf-wrap">
             <iframe className="pdf-frame" title={relPath} src={pdfUrl ?? ''} />
           </div>
         ) : ext === 'txt' ? (
-          <div className="main__grid main__grid--single">
-            <div className="main__article-wrap">
-              <pre className="plain-text">{sanitizePlainText(raw ?? '')}</pre>
-            </div>
-            <div className="main__toc-wrap" />
+          <div className="main__article-wrap">
+            <pre className="plain-text">{sanitizePlainText(raw ?? '')}</pre>
           </div>
         ) : (
-          <div className="main__grid">
-            <div className="main__article-wrap">
-              <MarkdownDoc markdown={raw ?? ''} docRelPath={relPath} />
-            </div>
-            <div className="main__toc-wrap">
-              <TableOfContents items={tocItems} />
-            </div>
+          <div className="main__article-wrap">
+            <MarkdownDoc
+              markdown={raw ?? ''}
+              docRelPath={relPath}
+              articleRef={setArticleEl}
+              onImageClick={onMarkdownImageClick}
+            />
           </div>
         )}
       </main>
+
+      <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
+        <div className="sidebar__inner">
+          {shouldShowToc ? (
+            <TableOfContents
+              items={tocItems}
+              activeId={activeTocId}
+              onNavigate={() => {
+                // close TOC after navigation on small screens
+                setRightOpen(false)
+              }}
+            />
+          ) : null}
+        </div>
+      </aside>
+
+      {lightbox?.open ? (
+        <div className="img-lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+          <div className="img-lightbox__backdrop" onClick={closeLightbox} />
+          <div className="img-lightbox__dialog">
+            <button type="button" className="img-lightbox__close" aria-label="Close" onClick={closeLightbox}>
+              ×
+            </button>
+            <div
+              className="img-lightbox__viewport"
+              ref={lbViewportRef}
+              onWheel={(e) => {
+                e.preventDefault()
+                const vp = lbViewportRef.current
+                if (!vp) return
+                const rect = vp.getBoundingClientRect()
+                const p = getLocalPoint(e, rect)
+                setLbTransform((t) => {
+                  const nextScale = clamp(t.scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 1, 6)
+                  const dx = (p.x - t.tx) / t.scale
+                  const dy = (p.y - t.ty) / t.scale
+                  return {
+                    scale: nextScale,
+                    tx: p.x - dx * nextScale,
+                    ty: p.y - dy * nextScale,
+                  }
+                })
+              }}
+            >
+              <img
+                className="img-lightbox__img"
+                src={lightbox.src}
+                alt={lightbox.alt}
+                draggable={false}
+                style={{
+                  transform: `translate3d(${lbTransform.tx}px, ${lbTransform.ty}px, 0) scale(${lbTransform.scale})`,
+                }}
+                onPointerDown={(e) => {
+                  const vp = lbViewportRef.current
+                  if (!vp) return
+                  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+                  const rect = vp.getBoundingClientRect()
+                  const p = getLocalPoint(e, rect)
+                  lbPointers.current.set(e.pointerId, p)
+
+                  const pts = Array.from(lbPointers.current.values())
+                  if (pts.length === 1) {
+                    lbDragRef.current = { startX: p.x, startY: p.y, startTx: lbTransform.tx, startTy: lbTransform.ty }
+                    lbPinchRef.current = null
+                  } else if (pts.length === 2) {
+                    const [a, b] = pts
+                    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+                    const dist = Math.hypot(a.x - b.x, a.y - b.y)
+                    lbPinchRef.current = {
+                      startDist: dist || 1,
+                      startScale: lbTransform.scale,
+                      startTx: lbTransform.tx,
+                      startTy: lbTransform.ty,
+                      startMid: mid,
+                    }
+                    lbDragRef.current = null
+                  }
+                }}
+                onPointerMove={(e) => {
+                  const vp = lbViewportRef.current
+                  if (!vp) return
+                  const rect = vp.getBoundingClientRect()
+                  const p = getLocalPoint(e, rect)
+                  if (!lbPointers.current.has(e.pointerId)) return
+                  lbPointers.current.set(e.pointerId, p)
+
+                  const pts = Array.from(lbPointers.current.values())
+
+                  if (pts.length === 1 && lbDragRef.current) {
+                    const d = lbDragRef.current
+                    setLbTransform((t) => ({
+                      ...t,
+                      tx: d.startTx + (p.x - d.startX),
+                      ty: d.startTy + (p.y - d.startY),
+                    }))
+                    return
+                  }
+
+                  if (pts.length === 2 && lbPinchRef.current) {
+                    const pinch = lbPinchRef.current
+                    const [a, b] = pts
+                    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+                    const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1
+                    const nextScale = clamp((pinch.startScale * dist) / pinch.startDist, 1, 6)
+
+                    const anchor = pinch.startMid
+                    const dx = (anchor.x - pinch.startTx) / pinch.startScale
+                    const dy = (anchor.y - pinch.startTy) / pinch.startScale
+
+                    setLbTransform({
+                      scale: nextScale,
+                      tx: anchor.x - dx * nextScale + (mid.x - pinch.startMid.x),
+                      ty: anchor.y - dy * nextScale + (mid.y - pinch.startMid.y),
+                    })
+                  }
+                }}
+                onPointerUp={(e) => {
+                  lbPointers.current.delete(e.pointerId)
+                  lbDragRef.current = null
+                  lbPinchRef.current = null
+                }}
+                onPointerCancel={(e) => {
+                  lbPointers.current.delete(e.pointerId)
+                  lbDragRef.current = null
+                  lbPinchRef.current = null
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -157,7 +531,11 @@ export function DocLayout() {
   if ((ws.phase === 'permission' || ws.needsPermissionRestore) && ws.docFiles.length === 0) {
     return (
       <div className="app-shell">
-        <WorkspaceSidebar />
+        <aside className="sidebar">
+          <div className="sidebar__inner">
+            <WorkspaceSidebarContent />
+          </div>
+        </aside>
         <main className="main">
           <div className="main__article-wrap">
             <p className="empty-state">
@@ -177,7 +555,11 @@ export function DocLayout() {
   if (ws.phase === 'loading') {
     return (
       <div className="app-shell">
-        <WorkspaceSidebar />
+        <aside className="sidebar">
+          <div className="sidebar__inner">
+            <WorkspaceSidebarContent />
+          </div>
+        </aside>
         <main className="main">
           <p className="loading-indicator" aria-busy="true">
             Indexing Markdown files…

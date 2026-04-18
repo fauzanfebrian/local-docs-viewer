@@ -16,6 +16,8 @@ type Props = {
   markdown: string
   /** Workspace-relative path to the current file (POSIX), e.g. `notes/readme.md`. */
   docRelPath: string
+  articleRef?: (el: HTMLElement | null) => void
+  onImageClick?: (img: { src: string; alt?: string }) => void
 }
 
 function remarkStripHtmlComments() {
@@ -77,10 +79,12 @@ function MdImage({
   className,
   docRelPath,
   ws,
+  onImageClick,
   ...props
 }: React.ComponentPropsWithoutRef<'img'> & {
   docRelPath: string
   ws: ReturnType<typeof useWorkspace>
+  onImageClick?: (img: { src: string; alt?: string }) => void
 }) {
   const rawSrc = (src ?? '').trim()
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
@@ -126,6 +130,11 @@ function MdImage({
       alt={alt ?? ''}
       className={cls}
       loading="lazy"
+      onClick={(e) => {
+        props.onClick?.(e)
+        if (!finalSrc) return
+        onImageClick?.({ src: finalSrc, alt: alt ?? undefined })
+      }}
       onError={(e) => {
         props.onError?.(e)
         setIsBroken(true)
@@ -184,7 +193,11 @@ function MdLink({
   )
 }
 
-function createComponents(docRelPath: string, ws: ReturnType<typeof useWorkspace>): Components {
+function createComponents(
+  docRelPath: string,
+  ws: ReturnType<typeof useWorkspace>,
+  onImageClick?: (img: { src: string; alt?: string }) => void,
+): Components {
   return {
     table: ({ children, ...props }) => (
       <div className="table-scroll">
@@ -212,13 +225,16 @@ function createComponents(docRelPath: string, ws: ReturnType<typeof useWorkspace
       )
     },
     a: (props) => <MdLink {...props} docRelPath={docRelPath} />,
-    img: (props) => <MdImage {...props} docRelPath={docRelPath} ws={ws} />,
+    img: (props) => <MdImage {...props} docRelPath={docRelPath} ws={ws} onImageClick={onImageClick} />,
   }
 }
 
-export function MarkdownDoc({ markdown, docRelPath }: Props) {
+export function MarkdownDoc({ markdown, docRelPath, articleRef, onImageClick }: Props) {
   const ws = useWorkspace()
-  const components = useMemo(() => createComponents(docRelPath, ws), [docRelPath, ws])
+  const components = useMemo(
+    () => createComponents(docRelPath, ws, onImageClick),
+    [docRelPath, ws, onImageClick],
+  )
   const rehypePlugins = useMemo<PluggableList>(
     () => [
       rehypeSlug,
@@ -245,7 +261,7 @@ export function MarkdownDoc({ markdown, docRelPath }: Props) {
   )
 
   return (
-    <article className="markdown-body">
+    <article className="markdown-body" ref={articleRef}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkStripHtmlComments]}
         rehypePlugins={rehypePlugins}

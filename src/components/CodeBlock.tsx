@@ -30,7 +30,6 @@ const BUNDLED_LANGS = [
   'python',
   'java',
   'wasm',
-  'dockerfile',
 ] as const
 
 const LANG_ALIASES: Record<string, string> = {
@@ -38,6 +37,7 @@ const LANG_ALIASES: Record<string, string> = {
   bash: 'shellscript',
   shell: 'shellscript',
   zsh: 'shellscript',
+  dockerfile: 'shellscript',
   md: 'markdown',
   js: 'javascript',
   ts: 'typescript',
