@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting…</title>
+    <meta name="robots" content="noindex" />
+  </head>
+  <body>
+    <script>
+      ;(() => {
+        // Vercel serves this page for unknown routes. Preserve the originally requested
+        // path and redirect to `/` so the SPA router can re-hydrate and handle it.
+        //
+        // The app consumes this key in `src/routes.tsx`.
+        const KEY = 'ldv:vercel404:intendedPath'
+        const intended = window.location.pathname + window.location.search + window.location.hash
+        try {
+          if (intended && intended !== '/' && intended.startsWith('/')) {
+            sessionStorage.setItem(KEY, intended)
+          }
+        } catch {
+          // ignore storage errors
+        }
+        window.location.replace('/')
+      })()
+    </script>
+  </body>
+</html>
+

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 
-import { decodeDocPath } from '../lib/mdPathResolve'
+import { decodeDocPath, encodeDocPath, stripFragment } from '../lib/mdPathResolve'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { MarkdownDoc } from './MarkdownDoc'
 import { MermaidBlock } from './MermaidBlock'
@@ -17,6 +17,36 @@ type LightboxState = {
   open: boolean
   src: string
   alt: string
+}
+
+const LAST_DOC_KEY_PREFIX = 'ldv:lastDocHref:'
+const SCROLL_KEY_PREFIX = 'ldv:scrollY:'
+
+function safeLocalStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeLocalStorageSet(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // ignore
+  }
+}
+
+function scrollKeyFor(activeWorkspaceId: string | null, relPath: string): string | null {
+  if (!activeWorkspaceId) return null
+  if (!relPath) return null
+  return `${SCROLL_KEY_PREFIX}${activeWorkspaceId}:${stripFragment(relPath)}`
+}
+
+function lastDocKeyFor(activeWorkspaceId: string | null): string | null {
+  if (!activeWorkspaceId) return null
+  return `${LAST_DOC_KEY_PREFIX}${activeWorkspaceId}`
 }
 
 function extOf(path: string): string {
@@ -85,6 +115,25 @@ function DocArticleView({ relPath }: ArticleProps) {
     startTy: number
     startMid: { x: number; y: number }
   } | null>(null)
+  const didRestoreScroll = useRef(false)
+
+  const isReadyForScrollRestore = useMemo(() => {
+    const ext = extOf(relPath)
+    if (ext === 'pdf') return pdfUrl !== null
+    const isImage =
+      ext === 'png' ||
+      ext === 'jpg' ||
+      ext === 'jpeg' ||
+      ext === 'gif' ||
+      ext === 'svg' ||
+      ext === 'webp' ||
+      ext === 'avif' ||
+      ext === 'bmp' ||
+      ext === 'ico' ||
+      ext === 'tif' ||
+      ext === 'tiff'
+    return isImage ? imageUrl !== null : raw !== null
+  }, [relPath, pdfUrl, imageUrl, raw])
 
   useEffect(() => {
     let cancelled = false
@@ -158,6 +207,52 @@ function DocArticleView({ relPath }: ArticleProps) {
       })
     }
   }, [relPath, ws])
+
+  // Persist the current doc path (so reload returns to the same page).
+  useEffect(() => {
+    if (ws.phase !== 'active') return
+    const key = lastDocKeyFor(ws.activeWorkspaceId)
+    if (!key) return
+    if (!relPath) return
+    safeLocalStorageSet(key, `/doc/${encodeDocPath(relPath)}`)
+  }, [relPath, ws.activeWorkspaceId, ws.phase])
+
+  // Restore + persist scroll position per (workspaceId, relPath).
+  useEffect(() => {
+    didRestoreScroll.current = false
+  }, [relPath])
+
+  useEffect(() => {
+    if (!isReadyForScrollRestore) return
+    if (didRestoreScroll.current) return
+    const key = scrollKeyFor(ws.activeWorkspaceId, relPath)
+    if (!key) return
+    const saved = safeLocalStorageGet(key)
+    const y = saved ? Number(saved) : NaN
+    didRestoreScroll.current = true
+    if (!Number.isFinite(y) || y <= 0) return
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: y })
+    })
+  }, [isReadyForScrollRestore, relPath, ws.activeWorkspaceId])
+
+  useEffect(() => {
+    const key = scrollKeyFor(ws.activeWorkspaceId, relPath)
+    if (!key) return
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        safeLocalStorageSet(key, String(window.scrollY || 0))
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [relPath, ws.activeWorkspaceId])
 
   const ext = extOf(relPath)
   const isMd = ext === 'md' || ext === 'markdown'
