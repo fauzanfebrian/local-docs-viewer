@@ -4,6 +4,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import { decodeDocPath } from '../lib/mdPathResolve'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { MarkdownDoc } from './MarkdownDoc'
+import { MermaidBlock } from './MermaidBlock'
 import { TableOfContents, type TocItem } from './TableOfContents'
 import { WorkspaceSidebarContent } from './WorkspaceSidebar'
 import DOMPurify from 'dompurify'
@@ -62,6 +63,7 @@ function DocArticleView({ relPath }: ArticleProps) {
   const [raw, setRaw] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [leftOpen, setLeftOpen] = useState(false)
   const [rightOpen, setRightOpen] = useState(false)
   const [tocItems, setTocItems] = useState<TocItem[]>([])
@@ -98,6 +100,10 @@ function DocArticleView({ relPath }: ArticleProps) {
         if (prev) URL.revokeObjectURL(prev)
         return null
       })
+      setImageUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
       try {
         const ext = extOf(relPath)
         if (ext === 'pdf') {
@@ -108,7 +114,29 @@ function DocArticleView({ relPath }: ArticleProps) {
           if (!cancelled) setPdfUrl(url)
           return
         }
-        const text = await (ext === 'txt' ? ws.loadText(relPath) : ws.loadMarkdown(relPath))
+
+        if (
+          ext === 'png' ||
+          ext === 'jpg' ||
+          ext === 'jpeg' ||
+          ext === 'gif' ||
+          ext === 'svg' ||
+          ext === 'webp' ||
+          ext === 'avif' ||
+          ext === 'bmp' ||
+          ext === 'ico' ||
+          ext === 'tif' ||
+          ext === 'tiff'
+        ) {
+          const handle = ws.getFileHandle(relPath) ?? ws.getImageHandle(relPath)
+          if (!handle) throw new Error('File not found in workspace index.')
+          const file = await handle.getFile()
+          const url = URL.createObjectURL(file)
+          if (!cancelled) setImageUrl(url)
+          return
+        }
+
+        const text = await (ext === 'txt' || ext === 'mmd' ? ws.loadText(relPath) : ws.loadMarkdown(relPath))
         if (!cancelled) setRaw(text)
       } catch (e) {
         if (!cancelled) {
@@ -124,11 +152,28 @@ function DocArticleView({ relPath }: ArticleProps) {
         if (prev) URL.revokeObjectURL(prev)
         return null
       })
+      setImageUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
     }
   }, [relPath, ws])
 
   const ext = extOf(relPath)
   const isMd = ext === 'md' || ext === 'markdown'
+  const isMermaid = ext === 'mmd'
+  const isImage =
+    ext === 'png' ||
+    ext === 'jpg' ||
+    ext === 'jpeg' ||
+    ext === 'gif' ||
+    ext === 'svg' ||
+    ext === 'webp' ||
+    ext === 'avif' ||
+    ext === 'bmp' ||
+    ext === 'ico' ||
+    ext === 'tif' ||
+    ext === 'tiff'
   const shouldShowToc = isMd
 
   const closeSidebars = useCallback(() => {
@@ -289,47 +334,50 @@ function DocArticleView({ relPath }: ArticleProps) {
     )
   }
 
-  if (ext !== 'pdf' && raw === null) {
-    return (
-      <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
-        <button
-          type="button"
-          className="chrome-btn chrome-btn--left"
-          aria-controls="sidebar-left"
-          aria-expanded={leftOpen}
-          aria-label="Toggle file explorer"
-          onClick={() => setLeftOpen((v) => !v)}
-        >
-          ☰
-        </button>
-        <button
-          type="button"
-          className="chrome-btn chrome-btn--right"
-          aria-controls="sidebar-right"
-          aria-expanded={rightOpen}
-          aria-label="Toggle table of contents"
-          onClick={() => setRightOpen((v) => !v)}
-        >
-          ≡
-        </button>
+  if (ext !== 'pdf') {
+    const isReady = isImage ? imageUrl !== null : raw !== null
+    if (!isReady) {
+      return (
+        <div className="app-shell app-shell--reader" data-left={leftOpen ? 'open' : 'closed'} data-right={rightOpen ? 'open' : 'closed'}>
+          <button
+            type="button"
+            className="chrome-btn chrome-btn--left"
+            aria-controls="sidebar-left"
+            aria-expanded={leftOpen}
+            aria-label="Toggle file explorer"
+            onClick={() => setLeftOpen((v) => !v)}
+          >
+            ☰
+          </button>
+          <button
+            type="button"
+            className="chrome-btn chrome-btn--right"
+            aria-controls="sidebar-right"
+            aria-expanded={rightOpen}
+            aria-label="Toggle table of contents"
+            onClick={() => setRightOpen((v) => !v)}
+          >
+            ≡
+          </button>
 
-        <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
+          <div className={`backdrop${isAnySidebarOpen ? ' is-visible' : ''}`} aria-hidden="true" onClick={closeSidebars} />
 
-        <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
-          <div className="sidebar__inner">
-            <WorkspaceSidebarContent />
-          </div>
-        </aside>
-        <main className="main">
-          <p className="loading-indicator" aria-busy="true">
-            Loading document…
-          </p>
-        </main>
-        <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
-          <div className="sidebar__inner" />
-        </aside>
-      </div>
-    )
+          <aside id="sidebar-left" className={`sidebar sidebar--left${leftOpen ? ' is-open' : ''}`}>
+            <div className="sidebar__inner">
+              <WorkspaceSidebarContent />
+            </div>
+          </aside>
+          <main className="main">
+            <p className="loading-indicator" aria-busy="true">
+              Loading document…
+            </p>
+          </main>
+          <aside id="sidebar-right" className={`sidebar sidebar--right${rightOpen ? ' is-open' : ''}`}>
+            <div className="sidebar__inner" />
+          </aside>
+        </div>
+      )
+    }
   }
 
   return (
@@ -368,9 +416,29 @@ function DocArticleView({ relPath }: ArticleProps) {
           <div className="pdf-wrap">
             <iframe className="pdf-frame" title={relPath} src={pdfUrl ?? ''} />
           </div>
+        ) : imageUrl ? (
+          <div className="main__article-wrap">
+            <div className="image-doc">
+              <img
+                className="image-doc__img"
+                src={imageUrl}
+                alt={relPath.split('/').pop() ?? relPath}
+                loading="eager"
+                onClick={() => {
+                  setLbTransform({ scale: 1, tx: 0, ty: 0 })
+                  setLightbox({ open: true, src: imageUrl, alt: relPath.split('/').pop() ?? relPath })
+                }}
+              />
+              <div className="image-doc__hint">Click to zoom</div>
+            </div>
+          </div>
         ) : ext === 'txt' ? (
           <div className="main__article-wrap">
             <pre className="plain-text">{sanitizePlainText(raw ?? '')}</pre>
+          </div>
+        ) : isMermaid ? (
+          <div className="main__article-wrap">
+            <MermaidBlock chart={raw ?? ''} />
           </div>
         ) : (
           <div className="main__article-wrap">
@@ -562,7 +630,7 @@ export function DocLayout() {
         </aside>
         <main className="main">
           <p className="loading-indicator" aria-busy="true">
-            Indexing Markdown files…
+            Indexing documents…
           </p>
         </main>
       </div>

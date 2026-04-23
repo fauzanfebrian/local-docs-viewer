@@ -10,8 +10,8 @@ export function LandingView() {
         <h1 className="landing-panel__title">Personal docs</h1>
         <p className="landing-panel__lead">
           This viewer runs entirely in your browser. Choose a folder on your device; nothing is uploaded
-          to a server. Only <code className="inline-code">.md</code> and{' '}
-          <code className="inline-code">.markdown</code> files are listed, and heavy folders like{' '}
+          to a server. Supported: <code className="inline-code">.md</code>, <code className="inline-code">.markdown</code>,{' '}
+          <code className="inline-code">.mmd</code>, <code className="inline-code">.txt</code>, <code className="inline-code">.pdf</code>, and images. Heavy folders like{' '}
           <code className="inline-code">node_modules</code> or <code className="inline-code">.git</code>{' '}
           are skipped.
         </p>

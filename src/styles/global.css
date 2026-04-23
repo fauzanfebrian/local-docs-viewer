@@ -374,6 +374,30 @@ body {
     border-color 0.12s ease;
 }
 
+/* Image document view (opening an image file directly) */
+.image-doc {
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.image-doc__img {
+  max-width: min(100%, 1200px);
+  max-height: calc(100dvh - 7rem);
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: zoom-in;
+}
+
+.image-doc__hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .img-lightbox__close:hover {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(34, 34, 34, 0.92);

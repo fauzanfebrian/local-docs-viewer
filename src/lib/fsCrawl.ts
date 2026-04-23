@@ -11,10 +11,10 @@ export const DEFAULT_IGNORED_DIR_NAMES = new Set([
   'coverage',
 ])
 
-const SUPPORTED_EXT = /\.(md|markdown|txt|pdf)$/i
-const SUPPORTED_IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp)$/i
+const SUPPORTED_IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp|avif|bmp|ico|tiff?)$/i
+const SUPPORTED_EXT = /\.(md|markdown|mmd|txt|pdf)$/i
 
-export type SupportedFileKind = 'markdown' | 'text' | 'pdf'
+export type SupportedFileKind = 'markdown' | 'mermaid' | 'text' | 'pdf' | 'image'
 
 export type DocFileRef = {
   /** POSIX-style path relative to workspace root (e.g. `notes/foo.md`). */
@@ -36,7 +36,7 @@ export type WorkspaceIndex = {
 
 /**
  * Recursively collects supported docs under `root`:
- * `.md` / `.markdown` / `.txt` / `.pdf`.
+ * `.md` / `.markdown` / `.mmd` / `.txt` / `.pdf` / image files.
  * Skips ignored directory names (see {@link DEFAULT_IGNORED_DIR_NAMES}).
  */
 export async function collectDocFiles(
@@ -90,7 +90,10 @@ async function walkDir(
     }
 
     if (SUPPORTED_IMAGE_EXT.test(name)) {
-      imageAcc.push({ relPath: rel, handle: handle as FileSystemFileHandle })
+      const h = handle as FileSystemFileHandle
+      imageAcc.push({ relPath: rel, handle: h })
+      // Also include images in the navigable doc list (so users can open them directly).
+      docAcc.push({ relPath: rel, kind: 'image', handle: h })
     }
   }
 }
@@ -106,6 +109,7 @@ export async function getFileBlob(handle: FileSystemFileHandle): Promise<File> {
 
 function classifyKind(filename: string): SupportedFileKind | null {
   if (/\.(md|markdown)$/i.test(filename)) return 'markdown'
+  if (/\.mmd$/i.test(filename)) return 'mermaid'
   if (/\.txt$/i.test(filename)) return 'text'
   if (/\.pdf$/i.test(filename)) return 'pdf'
   return null

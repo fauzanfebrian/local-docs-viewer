@@ -11,8 +11,23 @@ function splitName(name: string): { base: string; ext: string } {
 
 function badgeForExt(ext: string): string | null {
   if (ext === 'md' || ext === 'markdown') return 'MD'
+  if (ext === 'mmd') return 'MMD'
   if (ext === 'txt') return 'TXT'
   if (ext === 'pdf') return 'PDF'
+  if (
+    ext === 'png' ||
+    ext === 'jpg' ||
+    ext === 'jpeg' ||
+    ext === 'gif' ||
+    ext === 'svg' ||
+    ext === 'webp' ||
+    ext === 'avif' ||
+    ext === 'bmp' ||
+    ext === 'ico' ||
+    ext === 'tif' ||
+    ext === 'tiff'
+  )
+    return 'IMG'
   return null
 }
 
