@@ -1182,3 +1182,50 @@ body {
   border: none;
   background: var(--bg-page);
 }
+
+/* ——— Contribute CTA ——— */
+.cta-contribute {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(24, 24, 24, 0.92);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cta-contribute:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(34, 34, 34, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.cta-contribute svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+@media (max-width: 600px) {
+  .cta-contribute {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.65rem;
+  }
+}

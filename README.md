@@ -2,58 +2,82 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-A secure, fully client-side web application for viewing **local** documentation with a custom “Kindle Oasis” matte dark theme. It reads files directly from your device using the browser’s **File System Access API** — **nothing is uploaded**.
+A secure, fully client-side web application for viewing local documentation with a custom “Kindle Oasis” matte dark theme. It reads files directly from your device using the browser’s File System Access API—nothing is ever uploaded to a server.
+
+## Quick Start
+
+1. Visit [md.fauzanfebriansyah.my.id](https://md.fauzanfebriansyah.my.id)
+2. Click **Open Folder** and select a local directory (e.g., your Obsidian vault or project docs).
+3. Grant read permission when prompted by the browser.
+4. Navigate and read your `.md`, `.txt`, and `.pdf` files.
 
 ## Features
 
-- **Client-side only**: No backend, no uploads, no server file processing.
-- **Multi-format**: Supports `.md` / `.markdown`, `.txt`, and `.pdf`.
-- **Persistent workspaces**: Stores directory handles in IndexedDB; after reload you can restore access with a single prompt.
-- **PDFs via native viewer**: Uses `URL.createObjectURL()` + an `<iframe>` to rely on the browser’s built-in PDF viewer (no PDF.js).
-- **Memory-safe PDF switching**: Revokes object URLs when you navigate away from a PDF to prevent leaks.
-- **Security hardening**:
-  - Strict URL handling for Markdown links.
-  - Sanitizes HTML in syntax-highlighted code blocks (Shiki).
-  - Mermaid runs with `securityLevel: 'antiscript'`.
-  - Production CSP headers in `viewer/vercel.json`.
-- **SEO landing page**: Optimized meta tags + JSON-LD for the root landing page (`viewer/index.html`).
+- **Zero-Server Processing**: All parsing, rendering, and logic happen entirely in the browser.
+- **Kindle Oasis Theme**: A carefully crafted matte dark theme optimized for long reading sessions.
+- **Persistent Workspaces**: Uses IndexedDB to remember your folder handles across sessions.
+- **Markdown Support**: GitHub Flavored Markdown, math notation, and Mermaid diagrams.
+- **Native PDF Viewer**: Memory-efficient PDF viewing using browser primitives.
+- **Security**: Strict CSP, HTML sanitization via DOMPurify, and zero telemetry.
 
-## Live
+## Tech Stack
 
-- [https://md.fauzanfebriansyah.my.id](https://md.fauzanfebriansyah.my.id)
+- **Framework**: React 19 + Vite
+- **Language**: TypeScript
+- **Routing**: React Router 7
+- **Rendering**: `react-markdown`, `shiki` (syntax highlighting), and `mermaid`
+- **Storage**: `idb-keyval` (IndexedDB)
+- **Styling**: Vanilla CSS
 
-## Usage
+## Contributing
 
-1. Open the site.
-2. Click **Open Folder** and select a local directory.
-3. Grant read permission.
-4. Use the sidebar to open `.md`, `.txt`, or `.pdf` documents.
+Contributions are welcome. You can help by fixing bugs, adding features, or improving the documentation.
 
-## Local development
+### Prerequisites
+- Node.js (v18 or later)
+- npm
 
-The File System Access API requires a secure context (HTTPS) or `localhost`.
-
+### Development Setup
 ```bash
+# Clone the repository
+git clone https://github.com/fauzanfebrian/local-docs-viewer.git
+
+# Install dependencies
 npm install
+
+# Start the development server
 npm run dev
 ```
 
-## Deployment (Vercel)
+### Project Structure
+- `src/components/`: UI components and layout logic.
+- `src/context/`: Global state management via `WorkspaceContext`.
+- `src/lib/`: Core logic for file crawling, path resolution, and TOC parsing.
+- `src/styles/`: Global styles and theme definitions.
 
-- **Root Directory**: set the Vercel project root to `viewer/`.
-- **CSP**: `viewer/vercel.json` sets production CSP headers. Note: the JSON-LD `<script type="application/ld+json">` in `index.html` is allowlisted via a SHA-256 hash in CSP.
+### Workflow
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/name`).
+3. Commit your changes.
+4. Push to the branch and open a Pull Request.
 
-## Notes / limitations
+## Security and Privacy
 
-- **Browser support**: File System Access API is best supported in Chromium-based desktop browsers.
-- **Indexing**: The crawler is recursive and skips heavy/system folders by name (see `DEFAULT_IGNORED_DIR_NAMES` in `src/lib/fsCrawl.ts`).
-- **Privacy**: Workspace handles are stored in IndexedDB; permission can still revert to “prompt” after reload and must be re-granted by the user.
+This application is designed with a privacy-first architecture:
+- **Local Only**: No backend component exists to handle or store your files.
+- **CSP**: Strict Content Security Policy headers prevent unauthorized data exfiltration.
+- **Sanitization**: Code blocks and diagrams are sanitized to prevent XSS.
+
+## Limitations
+
+- **Browser Support**: Requires the File System Access API, supported in Chromium-based desktop browsers (Chrome, Edge, Brave).
+- **Permissions**: File system permissions are session-based. You will need to click "Restore Access" when returning to the site to re-authorize folder access.
 
 ## Author
 
 **Fauzan Febriansyah**  
-Website: `https://fauzanfebriansyah.my.id`
+Website: [https://fauzanfebriansyah.my.id](https://fauzanfebriansyah.my.id)
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).

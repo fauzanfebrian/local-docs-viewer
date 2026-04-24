@@ -1,9 +1,29 @@
 {
-  "name": "viewer",
+  "name": "local-docs-viewer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Client-side Markdown viewer: pick a local folder (File System Access API); nothing is uploaded.",
+  "description": "A secure, client-side Markdown and PDF viewer using the File System Access API with a Kindle-inspired theme.",
+  "author": "Fauzan Febriansyah <https://fauzanfebriansyah.my.id>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fauzanfebrian/local-docs-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fauzanfebrian/local-docs-viewer/issues"
+  },
+  "homepage": "https://md.fauzanfebriansyah.my.id",
+  "keywords": [
+    "markdown",
+    "viewer",
+    "local-first",
+    "file-system-access-api",
+    "kindle-theme",
+    "privacy-focused",
+    "react",
+    "vite"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
