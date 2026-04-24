@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "A secure, client-side Markdown and PDF viewer using the File System Access API with a Kindle-inspired theme.",
-  "author": "Fauzan Febriansyah <https://fauzanfebriansyah.my.id>",
+  "author": "Fauzan Febrian <https://fauzanfebrian.my.id>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/fauzanfebrian/local-docs-viewer/issues"
   },
-  "homepage": "https://md.fauzanfebriansyah.my.id",
+  "homepage": "https://md.fauzanfebrian.my.id",
   "keywords": [
     "markdown",
     "viewer",

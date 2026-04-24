@@ -6,7 +6,7 @@ A secure, fully client-side web application for viewing local documentation with
 
 ## Quick Start
 
-1. Visit [md.fauzanfebriansyah.my.id](https://md.fauzanfebriansyah.my.id)
+1. Visit [md.fauzanfebrian.my.id](https://md.fauzanfebrian.my.id)
 2. Click **Open Folder** and select a local directory (e.g., your Obsidian vault or project docs).
 3. Grant read permission when prompted by the browser.
 4. Navigate and read your `.md`, `.txt`, and `.pdf` files.
@@ -75,8 +75,8 @@ This application is designed with a privacy-first architecture:
 
 ## Author
 
-**Fauzan Febriansyah**  
-Website: [https://fauzanfebriansyah.my.id](https://fauzanfebriansyah.my.id)
+**Fauzan Febrian**  
+Website: [https://fauzanfebrian.my.id](https://fauzanfebrian.my.id)
 
 ## License
 

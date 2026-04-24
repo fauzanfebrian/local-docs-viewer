@@ -1,0 +1,29 @@
+# Local Docs Viewer
+A secure, fully client-side web application for viewing local documentation with a custom "Kindle Oasis" matte dark theme.
+
+## Core Information
+- Name: Local Docs Viewer
+- Domain: md.fauzanfebrian.my.id
+- Author: Fauzan Febrian
+- Author Website: fauzanfebrian.my.id
+- GitHub Repository: https://github.com/fauzanfebrian/local-docs-viewer
+- License: MIT
+
+## Features
+- Zero-Server Processing: All parsing, rendering, and logic happen entirely in the browser.
+- Kindle Oasis Theme: Matte dark theme optimized for long reading sessions.
+- Persistent Workspaces: Uses IndexedDB to remember folder handles across sessions.
+- Markdown Support: GitHub Flavored Markdown, math notation, and Mermaid diagrams.
+- Native PDF Viewer: Memory-efficient PDF viewing using browser primitives.
+- Security: Strict CSP, HTML sanitization via DOMPurify, and zero telemetry.
+
+## Technology Stack
+- Framework: React 19 + Vite
+- Language: TypeScript
+- Routing: React Router 7
+- Markdown Rendering: react-markdown, shiki, mermaid
+- Storage: idb-keyval (IndexedDB)
+- Styling: Vanilla CSS
+
+## Purpose
+This tool serves as an online markdown viewer and previewer that runs entirely locally, allowing users to safely view `.md`, `.txt`, and `.pdf` files without uploading them to any external server.
