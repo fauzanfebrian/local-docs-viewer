@@ -75,7 +75,7 @@ This application is designed with a privacy-first architecture:
 
 ## Author
 
-**Fauzan Febrian**  
+**Muhammad Fauzan Febriansyah**  
 Website: [https://fauzanfebrian.my.id](https://fauzanfebrian.my.id)
 
 ## License
