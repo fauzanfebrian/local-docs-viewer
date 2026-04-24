@@ -7,13 +7,9 @@ export function LandingView() {
   return (
     <div className="app-shell app-shell--empty">
       <div className="landing-panel">
-        <h1 className="landing-panel__title">Personal docs</h1>
+        <h1 className="landing-panel__title">Online Markdown Viewer</h1>
         <p className="landing-panel__lead">
-          This viewer runs entirely in your browser. Choose a folder on your device; nothing is uploaded
-          to a server. Supported: <code className="inline-code">.md</code>, <code className="inline-code">.markdown</code>,{' '}
-          <code className="inline-code">.mmd</code>, <code className="inline-code">.txt</code>, <code className="inline-code">.pdf</code>, and images. Heavy folders like{' '}
-          <code className="inline-code">node_modules</code> or <code className="inline-code">.git</code>{' '}
-          are skipped.
+          A secure, local markdown reader that runs entirely in your browser. Choose a folder on your device to view <code className="inline-code">.md</code>, <code className="inline-code">.txt</code>, <code className="inline-code">.pdf</code>, and images instantly. Nothing is ever uploaded to a server.
         </p>
         {isPermission ? (
           <div className="landing-panel__callout" role="status">
