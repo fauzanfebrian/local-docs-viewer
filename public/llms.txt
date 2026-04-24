@@ -27,3 +27,7 @@ A secure, fully client-side web application for viewing local documentation with
 
 ## Purpose
 This tool serves as an online markdown viewer and previewer that runs entirely locally, allowing users to safely view `.md`, `.txt`, and `.pdf` files without uploading them to any external server.
+
+## See Also
+- [Detailed Specification](https://md.fauzanfebrian.my.id/llms-full.txt)
+

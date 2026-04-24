@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://md.fauzanfebrian.my.id/sitemap.xml

@@ -1,11 +1,33 @@
 {
   "rewrites": [
     {
+      "source": "/(robots.txt|sitemap.xml|llms.txt|llms-full.txt|manifest.json|og-image.png)",
+      "destination": "/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
   ],
   "headers": [
+    {
+      "source": "/(robots.txt|sitemap.xml|llms.txt|llms-full.txt|manifest.json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/og-image.png",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

@@ -1,0 +1,34 @@
+# Local Docs Viewer - Full Specification
+
+Local Docs Viewer is a high-performance, privacy-first web application designed to render local documentation files directly in the browser. It leverages the modern File System Access API to bridge the gap between local files and web-based rich rendering.
+
+## Architecture & Design
+- **Local-First**: No data ever leaves the user's machine. All processing is done client-side.
+- **Vite-Powered**: Fast development and optimized production builds.
+- **React 19**: Utilizing the latest React features for efficient UI updates.
+- **Matte Dark Aesthetic**: Inspired by the Kindle Oasis, featuring low-contrast backgrounds and high-legibility typography for extended reading.
+
+## Deep Dive: Features
+- **File System Integration**: Uses `showDirectoryPicker` to grant persistent access to local folders.
+- **Smart Path Resolution**: Handles relative links between markdown files, allowing users to navigate their documentation like a website.
+- **Multi-Format Support**:
+    - **Markdown**: Full GFM support, task lists, tables.
+    - **Mathematics**: LaTeX support for scientific documentation.
+    - **Diagrams**: Integrated Mermaid.js for flowcharts, sequences, and charts.
+    - **PDF**: Native browser PDF integration.
+- **Zero Configuration**: Automatically crawls the selected directory and generates a navigational sidebar.
+- **Persistence**: Remembers recently opened workspaces using IndexedDB (via `idb-keyval`).
+
+## Technical Stack Detail
+- **Frontend**: React, React Router 7 (for internal routing of documents).
+- **Styling**: Vanilla CSS with CSS Variables for theme management.
+- **Syntax Highlighting**: Shiki for accurate, high-quality code blocks.
+- **Sanitization**: DOMPurify ensures that even if local files contain malicious scripts, they are stripped before rendering.
+
+## Security Posture
+- **Content Security Policy (CSP)**: Strict headers to prevent XSS and data exfiltration.
+- **Zero Telemetry**: No tracking, no analytics, no external logging.
+- **No Backend**: The "deployment" is purely static assets.
+
+## Integration for LLMs
+This site is designed to be a tool *for* users, but its structure is clean for AI discovery. The `llms.txt` file provides a high-level summary, while this `llms-full.txt` provides the technical depth required for agents to understand the system's capabilities.

@@ -1,0 +1,16 @@
+{
+  "name": "Local Docs Viewer",
+  "short_name": "LocalDocs",
+  "description": "Securely view local Markdown and PDF files in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
