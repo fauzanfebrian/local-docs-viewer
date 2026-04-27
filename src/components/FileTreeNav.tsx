@@ -31,19 +31,69 @@ function badgeForExt(ext: string): string | null {
   return null
 }
 
+function highlightText(text: string, tokens: string[]) {
+  if (tokens.length === 0) return text
+  const lower = text.toLowerCase()
+  const hits: Array<{ start: number; end: number }> = []
+
+  for (const raw of tokens) {
+    const t = raw.trim().toLowerCase()
+    if (!t) continue
+    let i = 0
+    while (true) {
+      const at = lower.indexOf(t, i)
+      if (at === -1) break
+      hits.push({ start: at, end: at + t.length })
+      i = at + t.length
+    }
+  }
+
+  if (hits.length === 0) return text
+  hits.sort((a, b) => a.start - b.start || a.end - b.end)
+
+  // Merge overlaps so we don't nest/fragment marks.
+  const merged: Array<{ start: number; end: number }> = []
+  for (const h of hits) {
+    const last = merged[merged.length - 1]
+    if (!last || h.start > last.end) merged.push({ ...h })
+    else last.end = Math.max(last.end, h.end)
+  }
+
+  const out: Array<string | JSX.Element> = []
+  let cursor = 0
+  for (const m of merged) {
+    if (m.start > cursor) out.push(text.slice(cursor, m.start))
+    out.push(
+      <mark key={`${m.start}:${m.end}`} className="file-tree__hit">
+        {text.slice(m.start, m.end)}
+      </mark>,
+    )
+    cursor = m.end
+  }
+  if (cursor < text.length) out.push(text.slice(cursor))
+  return <>{out}</>
+}
+
 type BranchProps = {
   nodes: FileTreeNode[]
   pathPrefix?: string
+  query?: string
 }
 
-function FileTreeBranch({ nodes, pathPrefix = '' }: BranchProps) {
+function FileTreeBranch({ nodes, pathPrefix = '', query = '' }: BranchProps) {
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+
   return (
     <ul className="file-tree">
       {nodes.map((node) =>
         node.kind === 'dir' ? (
           <li key={`${pathPrefix}/${node.name}`} className="file-tree__dir">
             <div className="file-tree__dir-label">{node.name}</div>
-            <FileTreeBranch nodes={node.children} pathPrefix={`${pathPrefix}/${node.name}`} />
+            <FileTreeBranch nodes={node.children} pathPrefix={`${pathPrefix}/${node.name}`} query={query} />
           </li>
         ) : (
           <li key={node.relPath} className="file-tree__file">
@@ -54,7 +104,7 @@ function FileTreeBranch({ nodes, pathPrefix = '' }: BranchProps) {
               }
             >
               <span className="file-tree__file-name">
-                {splitName(node.name).base}
+                {highlightText(splitName(node.name).base, tokens)}
               </span>
               {badgeForExt(splitName(node.name).ext) ? (
                 <span className="file-tree__badge" aria-hidden="true">
@@ -73,9 +123,9 @@ function FileTreeBranch({ nodes, pathPrefix = '' }: BranchProps) {
   )
 }
 
-export function FileTreeNav({ nodes }: { nodes: FileTreeNode[] }) {
+export function FileTreeNav({ nodes, query }: { nodes: FileTreeNode[]; query?: string }) {
   if (nodes.length === 0) {
     return <p className="sidebar__empty">No supported documents in this folder.</p>
   }
-  return <FileTreeBranch nodes={nodes} />
+  return <FileTreeBranch nodes={nodes} query={query} />
 }

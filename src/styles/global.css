@@ -1133,6 +1133,25 @@ body {
   color: var(--text);
 }
 
+.sidebar__input {
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text);
+}
+
+.sidebar__input::placeholder {
+  color: var(--text-faint);
+}
+
+.sidebar__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .sidebar__actions {
   margin-bottom: 1rem;
 }
@@ -1190,6 +1209,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-tree__hit {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  padding: 0 0.1em;
+  border-radius: 2px;
 }
 
 .file-tree__badge {

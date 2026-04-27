@@ -54,3 +54,23 @@ export function buildFileTree(relPaths: string[]): FileTreeNode[] {
   sortTreeDeep(syntheticRoot)
   return sortNodes(syntheticRoot.children)
 }
+
+export function filterFileTree(nodes: FileTreeNode[], query: string): FileTreeNode[] {
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (tokens.length === 0) return nodes
+
+  const visit = (n: FileTreeNode): FileTreeNode | null => {
+    if (n.kind === 'file') {
+      const hay = n.relPath.toLowerCase()
+      return tokens.every((t) => hay.includes(t)) ? n : null
+    }
+    const kept = n.children.map(visit).filter((x): x is FileTreeNode => x !== null)
+    return kept.length === 0 ? null : { ...n, children: kept }
+  }
+
+  return nodes.map(visit).filter((x): x is FileTreeNode => x !== null)
+}

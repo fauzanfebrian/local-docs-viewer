@@ -1,10 +1,15 @@
-import { buildFileTree } from '../lib/fileTree'
+import { useMemo, useState } from 'react'
+
+import { buildFileTree, filterFileTree } from '../lib/fileTree'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { FileTreeNav } from './FileTreeNav'
 
 export function WorkspaceSidebarContent() {
   const ws = useWorkspace()
-  const tree = buildFileTree(ws.docFiles.map((f) => f.relPath))
+  const [query, setQuery] = useState('')
+
+  const tree = useMemo(() => buildFileTree(ws.docFiles.map((f) => f.relPath)), [ws.docFiles])
+  const filtered = useMemo(() => filterFileTree(tree, query), [query, tree])
 
   return (
     <>
@@ -52,7 +57,24 @@ export function WorkspaceSidebarContent() {
         {ws.needsPermissionRestore ? (
           <p className="sidebar__empty">Restore access to refresh the file list.</p>
         ) : (
-          <FileTreeNav nodes={tree} />
+          <>
+            <label className="sidebar__field">
+              <span className="sidebar__field-label">Search</span>
+              <input
+                type="search"
+                className="sidebar__input"
+                placeholder="Filter files…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Filter files"
+              />
+            </label>
+            {query.trim() && filtered.length === 0 ? (
+              <p className="sidebar__empty">No matches.</p>
+            ) : (
+              <FileTreeNav nodes={filtered} query={query} />
+            )}
+          </>
         )}
       </nav>
     </>
