@@ -109,6 +109,7 @@ function DocArticleView({ relPath }: ArticleProps) {
   const [lightbox, setLightbox] = useState<LightboxState | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const lbViewportRef = useRef<HTMLDivElement | null>(null)
+  const [lbViewportEl, setLbViewportEl] = useState<HTMLDivElement | null>(null)
   const lbPointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const [lbNatural, setLbNatural] = useState<{ w: number; h: number } | null>(null)
   const [lbViewport, setLbViewport] = useState<{ w: number; h: number }>({ w: 1, h: 1 })
@@ -171,15 +172,20 @@ function DocArticleView({ relPath }: ArticleProps) {
   )
 
   useEffect(() => {
-    const vp = lbViewportRef.current
+    const vp = lbViewportEl
     if (!vp) return
-    const ro = new ResizeObserver(() => {
+
+    const update = () => {
       const rect = vp.getBoundingClientRect()
       setLbViewport({ w: Math.max(1, rect.width), h: Math.max(1, rect.height) })
-    })
+    }
+
+    update()
+
+    const ro = new ResizeObserver(() => update())
     ro.observe(vp)
     return () => ro.disconnect()
-  }, [])
+  }, [lbViewportEl])
 
   // When natural/base changes (new image or resize), re-center and re-clamp.
   useEffect(() => {
@@ -713,7 +719,10 @@ function DocArticleView({ relPath }: ArticleProps) {
             </div>
             <div
               className="img-lightbox__viewport"
-              ref={lbViewportRef}
+              ref={(el) => {
+                lbViewportRef.current = el
+                setLbViewportEl(el)
+              }}
               onWheel={(e) => {
                 e.preventDefault()
                 const vp = lbViewportRef.current
