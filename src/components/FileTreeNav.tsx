@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import type { ReactNode } from 'react'
 
 import { encodeDocPath } from '../lib/mdPathResolve'
 import type { FileTreeNode } from '../lib/fileTree'
@@ -59,7 +60,7 @@ function highlightText(text: string, tokens: string[]) {
     else last.end = Math.max(last.end, h.end)
   }
 
-  const out: Array<string | JSX.Element> = []
+  const out: ReactNode[] = []
   let cursor = 0
   for (const m of merged) {
     if (m.start > cursor) out.push(text.slice(cursor, m.start))
