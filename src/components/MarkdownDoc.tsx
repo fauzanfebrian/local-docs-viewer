@@ -69,6 +69,14 @@ function isLocalMarkdownHref(href: string): boolean {
   return /\.(md|markdown)(#|$)/i.test(href)
 }
 
+function isAllowedIframeSrc(raw: string): boolean {
+  const s = raw.trim()
+  if (!/^https:\/\//i.test(s)) return false
+  if (/^https?:\/\/\s*$/i.test(s)) return false
+  if (/^https?:\/\/\s*#/i.test(s)) return false
+  return true
+}
+
 function isProbablyLocalImageSrc(src: string): boolean {
   const s = src.trim()
   if (s === '') return false
@@ -205,12 +213,43 @@ function MdLink({
   )
 }
 
+function MdIframe({ src, title, className, ...props }: React.ComponentPropsWithoutRef<'iframe'>) {
+  const rawSrc = (src ?? '').trim()
+  if (!rawSrc || !isAllowedIframeSrc(rawSrc)) {
+    // No iframe for non-https or weird URLs; render a plain external link instead.
+    return rawSrc ? (
+      <a className={className} href={rawSrc} target="_blank" rel="noreferrer noopener">
+        {title || rawSrc}
+      </a>
+    ) : null
+  }
+
+  return (
+    <iframe
+      {...props}
+      className={className}
+      src={rawSrc}
+      title={title || rawSrc}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      // Let the embed run its own JS, but isolate it from our origin.
+      // (No `allow-same-origin`.)
+      sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+    />
+  )
+}
+
 function createComponents(
   docRelPath: string,
   ws: ReturnType<typeof useWorkspace>,
   onImageClick?: (img: { src: string; alt?: string }) => void,
 ): Components {
   return {
+    // Defense-in-depth: even if raw HTML is enabled later, never render these tags from markdown.
+    script: () => null,
+    iframe: (props) => <MdIframe {...props} />,
+    object: () => null,
+    embed: () => null,
     table: ({ children, ...props }) => (
       <div className="table-scroll">
         <table {...props}>{children}</table>
