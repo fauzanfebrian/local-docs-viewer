@@ -53,7 +53,19 @@ function stripTrailingNewline(s: string): string {
   return s.replace(/\n$/, '')
 }
 
+function isExternalUrlLike(raw: string): boolean {
+  const s = raw.trim()
+  if (s === '') return false
+  // protocol-relative URLs, e.g. //example.com/a.md
+  if (/^\/\//.test(s)) return true
+  // any scheme: http:, https:, mailto:, file:, vscode:, etc.
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return true
+  return false
+}
+
 function isLocalMarkdownHref(href: string): boolean {
+  if (isExternalUrlLike(href)) return false
+  if (href.trim().startsWith('#')) return false
   return /\.(md|markdown)(#|$)/i.test(href)
 }
 
