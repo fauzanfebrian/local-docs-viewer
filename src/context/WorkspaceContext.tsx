@@ -185,8 +185,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const handle = getFileHandle(relPath)
       if (!handle) throw new Error('File not found in workspace index.')
       const raw = await readTextFile(handle)
-      contentCache.current.set(relPath, raw)
-      return raw
+      // Defensive: some "markdown" files are actually full HTML documents or embed <script>.
+      // We never want local docs to be able to inject/execute scripts in the viewer.
+      const scrubbed = raw
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+        .replace(/<script\b[^>]*\/\s*>/gi, '')
+      contentCache.current.set(relPath, scrubbed)
+      return scrubbed
     },
     [getFileHandle],
   )
