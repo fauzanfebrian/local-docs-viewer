@@ -279,6 +279,7 @@ export function MarkdownDoc({ markdown, docRelPath, articleRef, onImageClick }: 
         rehypePlugins={rehypePlugins}
         components={components}
         urlTransform={urlTransform}
+        skipHtml
       >
         {markdown}
       </ReactMarkdown>
