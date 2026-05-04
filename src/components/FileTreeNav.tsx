@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 
 import { encodeDocPath } from '../lib/mdPathResolve'
-import type { FileTreeNode } from '../lib/fileTree'
+import type { FileTreeDir, FileTreeNode } from '../lib/fileTree'
 
 function splitName(name: string): { base: string; ext: string } {
   const i = name.lastIndexOf('.')
@@ -81,6 +82,25 @@ type BranchProps = {
   query?: string
 }
 
+function FileTreeDirRow({ node, pathPrefix, query }: { node: FileTreeDir; pathPrefix: string; query: string }) {
+  const [open, setOpen] = useState(true)
+  const dirPath = `${pathPrefix}/${node.name}`
+  return (
+    <li className="file-tree__dir">
+      <button
+        type="button"
+        className={`file-tree__dir-toggle${open ? ' is-open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className="file-tree__dir-chevron" aria-hidden />
+        <span className="file-tree__dir-name">{node.name}</span>
+      </button>
+      {open ? <FileTreeBranch nodes={node.children} pathPrefix={dirPath} query={query} /> : null}
+    </li>
+  )
+}
+
 function FileTreeBranch({ nodes, pathPrefix = '', query = '' }: BranchProps) {
   const tokens = query
     .trim()
@@ -92,10 +112,7 @@ function FileTreeBranch({ nodes, pathPrefix = '', query = '' }: BranchProps) {
     <ul className="file-tree">
       {nodes.map((node) =>
         node.kind === 'dir' ? (
-          <li key={`${pathPrefix}/${node.name}`} className="file-tree__dir">
-            <div className="file-tree__dir-label">{node.name}</div>
-            <FileTreeBranch nodes={node.children} pathPrefix={`${pathPrefix}/${node.name}`} query={query} />
-          </li>
+          <FileTreeDirRow key={`${pathPrefix}/${node.name}`} node={node} pathPrefix={pathPrefix} query={query} />
         ) : (
           <li key={node.relPath} className="file-tree__file">
             <NavLink

@@ -1197,11 +1197,50 @@ body {
   border-left: 1px solid var(--border-faint);
 }
 
-.file-tree__dir-label {
+.file-tree__dir-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.12rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-faint);
-  padding: 0.35rem 0.55rem 0.12rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.file-tree__dir-toggle:hover {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.file-tree__dir-chevron {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-top: 0.22rem solid transparent;
+  border-bottom: 0.22rem solid transparent;
+  border-left: 0.28rem solid currentColor;
+  transform: translateY(0.02rem) rotate(0deg);
+  transition: transform 0.12s ease;
+  opacity: 0.85;
+}
+
+.file-tree__dir-toggle.is-open .file-tree__dir-chevron {
+  transform: translateY(0.02rem) rotate(90deg);
+}
+
+.file-tree__dir-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-tree__file-name {
